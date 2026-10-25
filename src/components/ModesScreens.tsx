@@ -77,8 +77,8 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
       : 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070b12]/95 p-4">
-      <div className="scrollable-panel max-h-[92vh] w-full max-w-3xl border border-white/15 bg-[#0f172a] p-6 shadow-2xl">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#070b12]/95 p-3">
+      <div className="scrollable-panel max-h-[94%] w-full max-w-3xl border border-white/15 bg-[#0f172a] p-5 shadow-2xl">
         <div className="border-b border-white/10 pb-4 text-center">
           <p className="text-xs font-bold tracking-widest text-emerald-400 uppercase">
             {matchSettings.mode === 'training'

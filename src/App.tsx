@@ -166,6 +166,59 @@ export default function App() {
     },
   });
 
+  // Universal Landscape Viewport State (rotates into landscape automatically on portrait devices)
+  const [viewport, setViewport] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    h: typeof window !== 'undefined' ? window.innerHeight : 720,
+  }));
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setViewport({
+        w: window.innerWidth,
+        h: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+
+    // Attempt native Screen Orientation API lock to landscape where supported
+    const screenAny = window.screen as unknown as {
+      orientation?: { lock?: (mode: string) => Promise<void> };
+    };
+    if (screenAny?.orientation?.lock) {
+      screenAny.orientation.lock('landscape').catch(() => {
+        // Browser requires fullscreen or forces CSS landscape rotation fallback below
+      });
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, []);
+
+  const isPortraitViewport = viewport.w < viewport.h;
+  const landscapeWidth = Math.max(viewport.w, viewport.h);
+  const landscapeHeight = Math.min(viewport.w, viewport.h);
+
+  const stageStyle: React.CSSProperties = isPortraitViewport
+    ? {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        width: `${landscapeWidth}px`,
+        height: `${landscapeHeight}px`,
+        transform: 'translate(-50%, -50%) rotate(90deg)',
+        transformOrigin: 'center center',
+      }
+    : {
+        position: 'fixed',
+         inset: 0,
+        width: '100vw',
+        height: '100vh',
+      };
+
   const homeTeam = teams.find((t) => t.id === homeTeamId) || teams[0];
   const awayTeam =
     teams.find((t) => t.id === awayTeamId && t.id !== homeTeam.id) ||
@@ -316,7 +369,6 @@ export default function App() {
               let hg = userIsHome ? stats.homeGoals : stats.awayGoals;
               let ag = userIsHome ? stats.awayGoals : stats.homeGoals;
               if (hg === ag) {
-                // Knockout tie-breaker penalty shootout edge
                 hg += 1;
               }
               m.homeGoals = hg;
@@ -398,6 +450,13 @@ export default function App() {
     customHomeId?: string,
     customAwayId?: string
   ) => {
+    // Also try locking screen orientation on user gesture
+    const screenAny = window.screen as unknown as {
+      orientation?: { lock?: (mode: string) => Promise<void> };
+    };
+    if (screenAny?.orientation?.lock) {
+      screenAny.orientation.lock('landscape').catch(() => {});
+    }
     if (customHomeId) setHomeTeamId(customHomeId);
     if (customAwayId) setAwayTeamId(customAwayId);
     setMatchSettings((prev) => ({ ...prev, ...customSettings }));
@@ -472,114 +531,118 @@ export default function App() {
     soundEngine.playUiClick();
   };
 
-  // Render Live 3D Match Viewport
+  // Render Live 3D Match Viewport (Always in Landscape on all devices)
   if (inMatch) {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-[#070b12]">
-        {/* Isolated Three.js WebGL Mount Container */}
-        <div ref={canvasMountRef} className="h-full w-full" />
+      <div style={stageStyle} className="overflow-hidden bg-[#070b12]">
+        <div className="relative h-full w-full overflow-hidden bg-[#070b12]">
+          {/* Isolated Three.js WebGL Mount Container */}
+          <div ref={canvasMountRef} className="h-full w-full" />
 
-        {/* Semantic Broadcast HUD Overlay */}
-        <MatchHUD
-          hudState={hudState}
-          homeTeam={homeTeam}
-          awayTeam={awayTeam}
-          matchSettings={matchSettings}
-          userSettings={userSettings}
-          cameraPreset={cameraPreset}
-          isPaused={isPaused}
-          onTogglePause={() => {
-            const next = !isPaused;
-            setIsPaused(next);
-            engineRef.current?.setPaused(next);
-          }}
-          onChangeCamera={(preset) => {
-            setCameraPreset(preset);
-            engineRef.current?.setCameraPreset(preset);
-          }}
-          onSkipCelebration={() => engineRef.current?.skipCelebration()}
-          onOpenTacticsModal={() => {
-            setIsPaused(true);
-            engineRef.current?.setPaused(true);
-            setShowSquadModal(true);
-          }}
-          onRestartMatch={() => {
-            setCompletedMatchResult(null);
-            setIsPaused(false);
-            engineRef.current?.restartMatch();
-          }}
-          onQuitToMenu={() => {
-            setIsPaused(false);
-            setInMatch(false);
-          }}
-          onSubstitute={(starterId, subData) => {
-            engineRef.current?.performSubstitution(starterId, subData);
-          }}
-          onQuickMentalityChange={(mentality) => {
-            const updated: TeamData = {
-              ...homeTeam,
-              tactics: { ...homeTeam.tactics, mentality },
-            };
-            handleSaveSquadAndTactics(updated);
-          }}
-        />
-
-        {/* Responsive Mobile Virtual Joystick & Action Buttons + Keyboard Controller */}
-        <VirtualControls
-          userHasPossession={hudState.userHasPossession}
-          shotPowerCharge={hudState.shotPowerCharge}
-          deadzone={userSettings.joystickDeadzone}
-          buttonScale={userSettings.buttonScale}
-          isManagerMode={matchSettings.mode === 'manager'}
-          onInputChange={(partial: Partial<ControlInputState>) =>
-            engineRef.current?.setControlInput(partial)
-          }
-          onPass={() => engineRef.current?.triggerPass(false)}
-          onThroughBall={() => engineRef.current?.triggerPass(true)}
-          onShootStart={() => engineRef.current?.setControlInput({ ChargingShot: true })}
-          onShootRelease={() => engineRef.current?.setControlInput({ ChargingShot: false })}
-          onSkillMove={() => engineRef.current?.triggerSkillMove()}
-          onTackle={(isSlide) => engineRef.current?.triggerTackle(isSlide)}
-          onSwitchPlayer={() => engineRef.current?.switchControlledPlayer()}
-        />
-
-        {/* In-Match Squad & Formation Modal */}
-        {showSquadModal && (
-          <SquadTacticsModal
-            team={homeTeam}
-            onSaveTeam={handleSaveSquadAndTactics}
-            onClose={() => setShowSquadModal(false)}
-          />
-        )}
-
-        {/* Full-Time Results & Match Telemetry Modal */}
-        {completedMatchResult && (
-          <MatchResultsModal
-            stats={completedMatchResult.stats}
+          {/* Semantic Broadcast HUD Overlay */}
+          <MatchHUD
+            hudState={hudState}
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             matchSettings={matchSettings}
-            challengePassed={completedMatchResult.challengePassed}
-            trainingScore={completedMatchResult.trainingScore}
-            earnedCoins={completedMatchResult.earnedCoins}
-            earnedXp={completedMatchResult.earnedXp}
-            onRematch={() => {
+            userSettings={userSettings}
+            cameraPreset={cameraPreset}
+            isPaused={isPaused}
+            onTogglePause={() => {
+              const next = !isPaused;
+              setIsPaused(next);
+              engineRef.current?.setPaused(next);
+            }}
+            onChangeCamera={(preset) => {
+              setCameraPreset(preset);
+              engineRef.current?.setCameraPreset(preset);
+            }}
+            onSkipCelebration={() => engineRef.current?.skipCelebration()}
+            onOpenTacticsModal={() => {
+              setIsPaused(true);
+              engineRef.current?.setPaused(true);
+              setShowSquadModal(true);
+            }}
+            onRestartMatch={() => {
               setCompletedMatchResult(null);
+              setIsPaused(false);
               engineRef.current?.restartMatch();
             }}
-            onExitToMenu={() => {
-              setCompletedMatchResult(null);
+            onQuitToMenu={() => {
+              setIsPaused(false);
               setInMatch(false);
             }}
+            onSubstitute={(starterId, subData) => {
+              engineRef.current?.performSubstitution(starterId, subData);
+            }}
+            onQuickMentalityChange={(mentality) => {
+              const updated: TeamData = {
+                ...homeTeam,
+                tactics: { ...homeTeam.tactics, mentality },
+              };
+              handleSaveSquadAndTactics(updated);
+            }}
           />
-        )}
+
+          {/* Responsive Mobile Virtual Joystick & Action Buttons + Keyboard Controller */}
+          <VirtualControls
+            userHasPossession={hudState.userHasPossession}
+            shotPowerCharge={hudState.shotPowerCharge}
+            deadzone={userSettings.joystickDeadzone}
+            buttonScale={userSettings.buttonScale}
+            isManagerMode={matchSettings.mode === 'manager'}
+            isRotatedPortrait={isPortraitViewport}
+            onInputChange={(partial: Partial<ControlInputState>) =>
+              engineRef.current?.setControlInput(partial)
+            }
+            onPass={() => engineRef.current?.triggerPass(false)}
+            onThroughBall={() => engineRef.current?.triggerPass(true)}
+            onShootStart={() => engineRef.current?.setControlInput({ ChargingShot: true })}
+            onShootRelease={() => engineRef.current?.setControlInput({ ChargingShot: false })}
+            onSkillMove={() => engineRef.current?.triggerSkillMove()}
+            onTackle={(isSlide) => engineRef.current?.triggerTackle(isSlide)}
+            onSwitchPlayer={() => engineRef.current?.switchControlledPlayer()}
+          />
+
+          {/* In-Match Squad & Formation Modal */}
+          {showSquadModal && (
+            <SquadTacticsModal
+              team={homeTeam}
+              onSaveTeam={handleSaveSquadAndTactics}
+              onClose={() => setShowSquadModal(false)}
+            />
+          )}
+
+          {/* Full-Time Results & Match Telemetry Modal */}
+          {completedMatchResult && (
+            <MatchResultsModal
+              stats={completedMatchResult.stats}
+              homeTeam={homeTeam}
+              awayTeam={awayTeam}
+              matchSettings={matchSettings}
+              challengePassed={completedMatchResult.challengePassed}
+              trainingScore={completedMatchResult.trainingScore}
+              earnedCoins={completedMatchResult.earnedCoins}
+              earnedXp={completedMatchResult.earnedXp}
+              onRematch={() => {
+                setCompletedMatchResult(null);
+                engineRef.current?.restartMatch();
+              }}
+              onExitToMenu={() => {
+                setCompletedMatchResult(null);
+                setInMatch(false);
+              }}
+            />
+          )}
+        </div>
       </div>
     );
   }
 
-  // Render Main Menu Hub (Strict 3-Zone Top Bar Contract + Full 1440px Responsive Workspace)
+  // Render Main Menu Hub (Always in Landscape on all devices)
   return (
-    <div className="flex h-full w-full flex-col bg-[#070b12] text-slate-100">
+    <div style={stageStyle} className="overflow-hidden bg-[#070b12]">
+      <div className="relative flex h-full w-full flex-col bg-[#070b12] text-slate-100">
       {/* STRICT 3-ZONE TOP BAR CONTRACT */}
       <header className="flex shrink-0 items-center justify-between gap-8 border-b border-white/10 bg-[#090d16] px-6 py-3.5">
         {/* Zone 1: Single text element wordmark */}
@@ -1317,6 +1380,7 @@ export default function App() {
           onClose={() => setShowSquadModal(false)}
         />
       )}
+      </div>
     </div>
   );
 }

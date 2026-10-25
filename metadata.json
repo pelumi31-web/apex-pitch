@@ -2,5 +2,7 @@
   "name": "APEX PITCH 26",
   "description": "Next-generation mobile-first 3D association football simulator featuring real-time physics, tactical AI, Career, Tournament, Street, Training, and Challenge modes.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

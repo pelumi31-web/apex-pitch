@@ -129,6 +129,7 @@ function createSoccerBallTexture(): THREE.CanvasTexture {
 
 export class MatchEngine {
   private container: HTMLElement;
+  private resizeObserver: ResizeObserver | null = null;
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -270,7 +271,11 @@ export class MatchEngine {
     this.renderer.shadowMap.enabled =
       !this.isSoftwareGl && userSettings.graphicsQuality !== 'Low';
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setSize(container.clientWidth || 1280, container.clientHeight || 720);
+    const initRawW = container.clientWidth || window.innerWidth || 1280;
+    const initRawH = container.clientHeight || window.innerHeight || 720;
+    const initW = Math.max(initRawW, initRawH);
+    const initH = Math.min(initRawW, initRawH);
+    this.renderer.setSize(initW, initH);
     container.appendChild(this.renderer.domElement);
 
     // 3. Scene & Studio Environment Map
@@ -289,12 +294,7 @@ export class MatchEngine {
     pmremGenerator.dispose();
 
     // 4. Camera Setup
-    this.camera = new THREE.PerspectiveCamera(
-      44,
-      (container.clientWidth || 1280) / (container.clientHeight || 720),
-      0.5,
-      300
-    );
+    this.camera = new THREE.PerspectiveCamera(44, initW / initH, 0.5, 300);
     this.camera.position.set(0, 34, 46);
     this.camera.lookAt(0, 0, 0);
 
@@ -394,6 +394,10 @@ export class MatchEngine {
     }
 
     window.addEventListener('resize', this.handleResize);
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.handleResize());
+      this.resizeObserver.observe(this.container);
+    }
     soundEngine.startCrowdAmbience();
     soundEngine.playWhistle('single');
     this.startLoop();
@@ -2003,8 +2007,10 @@ export class MatchEngine {
 
   private handleResize = () => {
     if (!this.container || this.isDisposed) return;
-    const w = this.container.clientWidth || window.innerWidth;
-    const h = this.container.clientHeight || window.innerHeight;
+    const rawW = this.container.clientWidth || window.innerWidth;
+    const rawH = this.container.clientHeight || window.innerHeight;
+    const w = Math.max(rawW, rawH);
+    const h = Math.min(rawW, rawH);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
@@ -2013,6 +2019,10 @@ export class MatchEngine {
   public dispose() {
     this.isDisposed = true;
     window.removeEventListener('resize', this.handleResize);
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     cancelAnimationFrame(this.frameId);
     clearTimeout(this.frameId);
     soundEngine.stopCrowdAmbience();

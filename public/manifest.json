@@ -1,0 +1,10 @@
+{
+  "name": "APEX PITCH 26 — Next-Gen 3D Football",
+  "short_name": "APEX PITCH 26",
+  "description": "Next-generation mobile-first 3D association football simulator in landscape mode.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#070b12",
+  "theme_color": "#090d16"
+}

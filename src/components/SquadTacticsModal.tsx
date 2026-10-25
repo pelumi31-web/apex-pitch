@@ -49,8 +49,8 @@ export const SquadTacticsModal: React.FC<SquadTacticsModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070b12]/90 p-3 sm:p-6">
-      <div className="scrollable-panel flex max-h-[92vh] w-full max-w-6xl flex-col border border-white/15 bg-[#0f172a] shadow-2xl">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#070b12]/92 p-2 sm:p-5">
+      <div className="scrollable-panel flex max-h-[94%] w-full max-w-6xl flex-col border border-white/15 bg-[#0f172a] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div className="flex items-center gap-3">

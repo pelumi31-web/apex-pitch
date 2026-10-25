@@ -7,6 +7,7 @@ interface VirtualControlsProps {
   deadzone: number;
   buttonScale: number;
   isManagerMode: boolean;
+  isRotatedPortrait?: boolean;
   onInputChange: (partial: Partial<ControlInputState>) => void;
   onPass: () => void;
   onThroughBall: () => void;
@@ -23,6 +24,7 @@ export const VirtualControls: React.FC<VirtualControlsProps> = ({
   deadzone,
   buttonScale,
   isManagerMode,
+  isRotatedPortrait = false,
   onInputChange,
   onPass,
   onThroughBall,
@@ -91,7 +93,7 @@ export const VirtualControls: React.FC<VirtualControlsProps> = ({
       if (!wasDown) {
         if (e.code === 'KeyJ' || e.code === 'KeyX') {
           onPass();
-        } else if (e.code === 'KeyK' || e.code === 'KeyW' && e.shiftKey) {
+        } else if (e.code === 'KeyK' || (e.code === 'KeyW' && e.shiftKey)) {
           if (e.code === 'KeyK') onThroughBall();
         } else if (e.code === 'Space' || e.code === 'KeyL') {
           if (userHasPossession) {
@@ -146,15 +148,22 @@ export const VirtualControls: React.FC<VirtualControlsProps> = ({
     return null;
   }
 
-  const maxRadius = 48;
+  const maxRadius = 44;
 
   const updateStickFromPoint = (clientX: number, clientY: number) => {
     if (!joystickRef.current) return;
     const rect = joystickRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    let dx = clientX - centerX;
-    let dy = clientY - centerY;
+
+    const rawDx = clientX - centerX;
+    const rawDy = clientY - centerY;
+
+    // When container is auto-rotated 90deg clockwise into landscape on a portrait device,
+    // physical +Y maps to landscape +X, and physical -X maps to landscape +Y.
+    let dx = isRotatedPortrait ? rawDy : rawDx;
+    let dy = isRotatedPortrait ? -rawDx : rawDy;
+
     const dist = Math.hypot(dx, dy);
 
     if (dist > maxRadius) {
@@ -199,7 +208,7 @@ export const VirtualControls: React.FC<VirtualControlsProps> = ({
   const scaleStyle = { transform: `scale(${buttonScale})` };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex items-end justify-between px-4 pb-4 sm:px-8 sm:pb-6">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between px-4 pb-3 sm:px-8 sm:pb-5">
       {/* LEFT SIDE: Responsive Virtual Joystick + Desktop Hint */}
       <div className="flex flex-col items-start gap-2">
         <div

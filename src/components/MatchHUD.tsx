@@ -59,7 +59,7 @@ export const MatchHUD: React.FC<MatchHUDProps> = ({
       : `${String(hudState.matchMinute).padStart(2, '0')}:00`;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-3 sm:p-5">
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2.5 sm:p-4">
       {/* TOP BAR: Broadcast Scoreboard & Tactical Camera / Pause Actions */}
       <div className="flex items-start justify-between gap-4">
         {/* Broadcast Scoreboard Strip */}
@@ -255,7 +255,7 @@ export const MatchHUD: React.FC<MatchHUDProps> = ({
 
       {/* PAUSE MENU & IN-MATCH SUBSTITUTIONS OVERLAY */}
       {isPaused && (
-        <div className="pointer-events-auto fixed inset-0 z-40 flex items-center justify-center bg-[#070b12]/90 p-4">
+        <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-[#070b12]/90 p-3">
           <div className="scrollable-panel max-h-[90vh] w-full max-w-3xl border border-white/15 bg-[#0f172a] p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
